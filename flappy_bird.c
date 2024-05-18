@@ -9,7 +9,10 @@
 #define pipeCount 3
 #define GREEN "\e[32m"  // ANSI code for green output
 #define YELLOW "\e[33m" // ANSI code for yellow output
+#define RED "\e[31m"    // ANSI code for red output
 #define NC "\e[0m"      // ANSI code for uncolord output
+
+int flap_term = 1; // Going to behave as a boolean for game over
 
 typedef struct
 {
@@ -20,16 +23,14 @@ typedef struct
 obj bird;
 obj pipes[3];
 
-void Make();
+void f_Make();  // Regulates the printing everything
+void f_Hit();   // Checks whether the bird hits the pipes or the borders
+void f_Pipes(); // for formation of new pipes
 
-void Hit();
-
-void Pipes();
-
-void Make()
+void f_Make()
 {
     char buffer[5000];        // Variable to hold the buffer that will be drawn
-    strcpy(buffer, "\e[17A"); // ANSI code to move the cursor up 17 lines
+    strcpy(buffer, "\e[17A"); // Code to move the cursor up 17 lines
 
     for (int y = 0; y <= ySize; y++) // Loop over each row
     {
@@ -100,17 +101,14 @@ void Make()
             {
                 strcat(buffer, NC "  ");
             }
-
-        bottom: // The point moved to with "goto bottom;"
+        bottom:; // The point moved to with "goto bottom;"
         }
-
         strcat(buffer, "\n"); // Append a new line to the buffer
     }
-
     printf(buffer); // Write the buffer
 }
 
-void Pipes()
+void f_Pipes()
 {
     for (int i = 0; i < pipeCount; i++)
     {
@@ -126,20 +124,19 @@ void Pipes()
             {
                 pipes[i].x = pipes[i - 1].x + 15;
             }
-
             pipes[i].y = (rand() % 7) + 5; // Setting pipes height
         }
     }
 }
 
-void Hit()
+void f_Hit()
 {
-    if (bird.y == 15 || bird.y < 1) // Bird touches the floor
+    if (bird.y == 15 || bird.y < 1) // Bird touches the floor or the roof
     {
-        exit(0);
+        flap_term = 0;
     }
 
-    for (int i = 0; i < pipeCount; i++)
+    for (int i = 0; i < pipeCount; i++) // Checks whether the bird is in the area where pipes are not present
     {
         if (
             (bird.x > pipes[i].x - 2) &&
@@ -147,71 +144,77 @@ void Hit()
             ((bird.y < pipes[i].y - 2) ||
              (bird.y > pipes[i].y + 1)))
         {
-            exit(0);
+            flap_term = 0;
         }
     }
 }
 
 int main()
 {
-    srand(time(NULL));
-    system("title \"Not Flappy Bird\"");
-
-    bird.x = 10;
-    bird.y = 10;
-
-    for (int i = 0; i < pipeCount; i++)
+    int replay = 1;
+    while (replay == 1)
     {
-        pipes[i].x = 25 + 15 * i;      // Distance netween to pipes is 15
-        pipes[i].y = (rand() % 7) + 5; // Distance between pipe y  is random from 5 to 11
-    }
+        system("cls");
+        flap_term = 1;
+        srand(time(NULL));
+        system("title \"Not Flappy Bird\""); // Renames powershell tab
+        bird.x = 10;
+        bird.y = 10;
 
-    int frame = 0; // Variable to hold the passed frames
-
-    printf("Press SPACE to start\n");
-
-    for (int i = 0; i <= ySize; i++)
-    {
-        printf("\n");
-    }
-
-    Make();
-
-    system("pause>nul"); // Pauses until any key is pressed
-
-    while (1)
-    {
-        if (GetAsyncKeyState(VK_SPACE) || GetAsyncKeyState(VK_UP)) // Bird moves up when spacebar or up arrow is pressed
+        for (int i = 0; i < pipeCount; i++)
         {
-            bird.y -= 2;
+            pipes[i].x = 25 + 15 * i;      // Distance netween to pipes is 15
+            pipes[i].y = (rand() % 7) + 5; // Distance between pipe y  is random from 5 to 11
         }
 
-        if (GetAsyncKeyState(VK_ESCAPE))
+        int frame = 0; // Variable to hold the passed frames
+        printf("Press SPACE / UP arrow to start\n");
+
+        for (int i = 0; i <= ySize; i++)
         {
-            break;
+            printf("\n");
         }
 
-        if (frame == 2)
-        {
-            bird.y++;
+        f_Make();
+        system("pause>nul"); // Pauses until any key is pressed
 
-            for (int i = 0; i < 3; i++)
+        while (1)
+        {
+            if (flap_term != 1)
             {
-                pipes[i].x -= 1;
+                break;
+            }
+            if (GetAsyncKeyState(VK_SPACE) || GetAsyncKeyState(VK_UP)) // Bird moves up when spacebar or up arrow is pressed
+            {
+                bird.y -= 2;
             }
 
-            frame = 0;
+            if (GetAsyncKeyState(VK_ESCAPE))
+            {
+                break;
+            }
+
+            if (frame == 2)
+            {
+                bird.y++;
+                for (int i = 0; i < 3; i++)
+                {
+                    pipes[i].x -= 1;
+                }
+                frame = 0;
+            }
+
+            f_Hit();
+            f_Make();
+            f_Pipes();
+            frame++;
+            Sleep(100);
         }
+        printf("Game Over\n");
+        system("pause>nul");
 
-        Hit();
-
-        Make();
-
-        Pipes();
-
-        frame++;
-
-        Sleep(50);
+        printf("Enter '1' to replay and '0' to exit: ");
+        scanf("%d", &replay);
     }
 
     return 0;
